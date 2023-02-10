@@ -17,28 +17,29 @@ class _CompletedListWidgetState extends State<CompletedListWidget> {
     return StreamBuilder(
       stream: AppUser.updateStream,
       builder: (context, snapshot) {
-        List<Todo> todos = AppUser.currentUser?.todosCompleted ?? [];
-        return todos.isEmpty
-            ? const Center(
-          child: Text(
-            'No completed tasks',
-            style: TextStyle(fontSize: 20),
-          ),
-        )
+        List<Todo> completed = AppUser.currentUser?.todosCompleted ?? [];
+        return completed.isEmpty
+            ? Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 128.0),
+                  child: Text(
+                    'No Completed Tasks',
+                    style: Theme.of(context).textTheme.headline2,
+                  ),
+                ),
+              )
             : ListView.separated(
-          physics: const BouncingScrollPhysics(),
-          padding: const EdgeInsets.all(16),
-          separatorBuilder: (context, index) => Container(height: 8),
-          itemCount: todos.length,
-          itemBuilder: (context, index) {
-            final todo = todos[index];
+                physics: const ClampingScrollPhysics(),
+                shrinkWrap: true,
+                separatorBuilder: (context, index) => Container(height: 8),
+                itemCount: completed.length,
+                itemBuilder: (context, index) {
+                  final todo = completed[index];
 
-            return TodoWidget(todo: todo);
-          },
-        );
+                  return TodoWidget(todo: todo);
+                },
+              );
       },
     );
-
-
   }
 }

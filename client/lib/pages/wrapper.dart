@@ -30,9 +30,7 @@ class _WrapperState extends State<Wrapper> {
   }
 
   Widget _builder(contest, snapshot) {
-    if (AppUser.currentUser == null || !AppUser.currentUser!.isLoaded) {
-      userLoaded = false;
-    }
+    userLoaded = !(AppUser.currentUser == null || !AppUser.currentUser!.isLoaded);
 
     if (snapshot.connectionState == ConnectionState.waiting) {
       return const Center(child: CircularProgressIndicator());
@@ -58,7 +56,5 @@ class _WrapperState extends State<Wrapper> {
     });
   }
 
-  void _refresh() {
-    setState(() {});
-  }
+  void _refresh() => setState(() {});
 }

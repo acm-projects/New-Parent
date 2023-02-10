@@ -32,6 +32,7 @@ class BabyProfile {
   Map<DateTime, List<DateTime>>? _diaperChanges;
   Map<DateTime, List<DateTime>>? _feedings;
   Map<DateTime, Map<DateTime, DateTime>>? _sleep;
+  Map<DateTime, String>? _notes;
 
   // public properties
   final String uid;
@@ -70,20 +71,13 @@ class BabyProfile {
     }
   }
 
-
   double get heightIn => _height ?? 0;
-  String get height {
-    return heightIn.toInt().toString() + '"';
-  }
+  String get height => '${heightIn.toInt().toString()}"';
 
   double get weightLb => _weightLb ?? 0;
   double get weightOz => _weightOz ?? 0;
-  String get weight {
-    return weightLb.toInt().toString() +
-        'lbs ' +
-        weightOz.toInt().toString() +
-        'oz';
-  }
+  String get weight =>
+      '${weightLb.toInt().toString()}lbs ${weightOz.toInt().toString()}oz';
 
   DateTime? get birthDate => _birthDate;
   String get age {
@@ -91,15 +85,18 @@ class BabyProfile {
     int days = DateTime.now().difference(birthDate!).inDays;
 
     if (days < 7) {
-      return days.toString() + ' days';
+      return days.toString() + (days == 1 ? ' day' : ' days');
     } else if (days < 30.44) {
-      return (days / 7).floor().toString() + ' weeks';
+      int weeks = (days ~/ 7);
+      return weeks.toString() + (weeks == 1 ? ' week' : ' weeks');
     } else if (days < 365.25) {
-      return (days / 30.44).floor().toString() + ' months';
+      int months = (days ~/ 30.44);
+      return months.toString() + (months == 1 ? ' month' : ' months');
     } else {
-      return (days / 365.25).floor().toString() + ' years';
+      int years = (days ~/ 365.25);
+      return years.toString() + (years == 1 ? ' year' : ' years');
     }
-  } //will calcuate age in days, weeks, months, or years and return as String
+  }
 
   Map<String, int> get allergies => _allergies ?? {};
 
@@ -110,22 +107,17 @@ class BabyProfile {
   }
 
   String get profilePic => _profilePic ?? '';
-
   DateTime? get startedSleep => _startedSleep;
 
   BabyProfile(this.uid);
 
   // private methods
-  void _setDataSync() async {
-    DataService.setProfileDataSync(uid, _setData);
-  }
-
-  void _removeDataSync() async {
-    DataService.removeProfileDataSync(uid);
-  }
+  void _setDataSync() async => DataService.setProfileDataSync(uid, _setData);
+  void _removeDataSync() async => DataService.removeProfileDataSync(uid);
 
   Future _setData(Map<String, dynamic> profileData) async {
     _created = DateTime.parse(profileData['created'] as String);
+
     _name = profileData['name'] as String;
     _gender = profileData['gender'] as int;
     _height = profileData['height'] as double;
@@ -139,7 +131,8 @@ class BabyProfile {
 
     _pediatrician = profileData['pediatrician'];
     _pediatricianPhone = profileData['pediatrician_phone'];
-    _formattedPedPhone = (await FlutterLibphonenumber().format(pediatricianPhone, 'US'))['formatted'];
+    _formattedPedPhone = (await FlutterLibphonenumber()
+        .format(pediatricianPhone, 'US'))['formatted'];
 
     _profilePic = profileData['profile_pic'] as String;
 
@@ -155,6 +148,7 @@ class BabyProfile {
               .map((item) => DateTime.parse(item as String))
               .toList());
     });
+
     _feedings =
         (profileData['feedings'] as Map<String, dynamic>).map((key, value) {
       return MapEntry(
@@ -163,6 +157,7 @@ class BabyProfile {
               .map((item) => DateTime.parse(item as String))
               .toList());
     });
+
     _sleep = (profileData['sleep'] as Map<String, dynamic>).map((key, value) {
       return MapEntry(
           DateTime.parse(key),
@@ -170,6 +165,10 @@ class BabyProfile {
             return MapEntry(
                 DateTime.parse(key), DateTime.parse(value as String));
           }));
+    });
+
+    _notes = (profileData['notes'] as Map<String, dynamic>).map((key, value) {
+      return MapEntry(DateTime.parse(key), value as String);
     });
 
     _streamController.add(currentProfile);
@@ -192,6 +191,7 @@ class BabyProfile {
       diaperChanges: _diaperChanges?[date] ?? [],
       feedings: _feedings?[date] ?? [],
       sleep: _sleep?[date] ?? {},
+      notes: _notes?[date] ?? '',
     );
   }
 
@@ -221,9 +221,7 @@ class BabyProfile {
     _diaperChanges ??= {};
     _diaperChanges![day] ??= [];
 
-    if (_diaperChanges![day]!.isNotEmpty) {
-      _diaperChanges![day]!.removeLast();
-    }
+    if (_diaperChanges![day]!.isNotEmpty) _diaperChanges![day]!.removeLast();
 
     final databaseMap = _diaperChanges!.map((key, value) {
       return MapEntry(
@@ -255,9 +253,7 @@ class BabyProfile {
     _feedings ??= {};
     _feedings![day] ??= [];
 
-    if (_feedings![day]!.isNotEmpty) {
-      _feedings![day]!.removeLast();
-    }
+    if (_feedings![day]!.isNotEmpty) _feedings![day]!.removeLast();
 
     final databaseMap = _feedings!.map((key, value) {
       return MapEntry(
@@ -291,8 +287,7 @@ class BabyProfile {
   }
 
   void updateProfileImage(String imagePath) async {
-    File imageFile = File(imagePath);
-    String imageUrl = await DataService.uploadProfileImage(uid, imageFile,
+    String imageUrl = await DataService.uploadProfileImage(uid, File(imagePath),
         currentImageUrl: _profilePic);
     updateData({'profile_pic': imageUrl});
   }
@@ -306,5 +301,16 @@ class BabyProfile {
     for (var userId in removedUsers) {
       DataService.updateUserPermissions(userId, remove: uid);
     }
+  }
+
+  void updateNotes(DateTime day, String notes) {
+    _notes ??= {};
+    _notes![DateTime(day.year, day.month, day.day)] = notes;
+
+    final newNotes = _notes!.map((key, value) {
+      return MapEntry(key.toString(), value);
+    });
+
+    updateData({'notes': newNotes});
   }
 }

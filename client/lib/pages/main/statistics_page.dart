@@ -1,3 +1,5 @@
+import 'package:client/widgets/edit_dialog.dart';
+import 'package:client/widgets/edit_profile_widgets.dart';
 import 'package:flutter/material.dart';
 
 import 'package:client/models/baby_profile.dart';
@@ -14,17 +16,24 @@ class StatisticsPage extends StatefulWidget {
 }
 
 class _StatisticsPageState extends State<StatisticsPage> {
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+
   BabyProfile currentBby = BabyProfile.currentProfile;
 
   //Date the user registers for the app
   late DateTime _startDate;
   late final int _currentDateIndex;
   late final int _endDateIndex;
+  late int _pageIndex;
+  late int _selectedIndex;
+  late PageController pageController;
+
   DateTime _currentDate = DateTime.now();
 
   int _feedingCount = 0;
   int _diaperCount = 0;
   int _sleepMins = 0;
+  String _notes = '';
 
   final List<String> days = [
     'Monday',
@@ -53,10 +62,6 @@ class _StatisticsPageState extends State<StatisticsPage> {
 
   List<SleepInformation> sleepSessions = [];
 
-  late int _pageIndex;
-  late int _selectedIndex;
-  late PageController pageController;
-
   String _getFormattedTime(DateTime time) {
     int hour = (time.hour % 12 == 0) ? 12 : time.hour % 12;
     String minute = time.minute.toString().padLeft(2, '0');
@@ -64,9 +69,8 @@ class _StatisticsPageState extends State<StatisticsPage> {
     return '$hour:$minute ${am ? 'AM' : 'PM'}';
   }
 
-  int _getDaySleepMins(int dayIndex) {
-    DateTime _date = _startDate.add(Duration(days: dayIndex));
-    DayStats stats = currentBby.getDayStats(_date);
+  int _getDaySleepMins(DateTime date) {
+    DayStats stats = currentBby.getDayStats(date);
 
     int sleepMins = 0;
 
@@ -78,13 +82,13 @@ class _StatisticsPageState extends State<StatisticsPage> {
   }
 
   void _setSelectedDateTime() {
-    _currentDate = _startDate.add(Duration(days: _selectedIndex));
+    _currentDate = _getDateTimeAdd(_selectedIndex);
     DayStats stats = currentBby.getDayStats(_currentDate);
-    bool isFirst = true;
 
     _feedingCount = stats.feedings.length;
     _diaperCount = stats.diaperChanges.length;
     _sleepMins = 0;
+    _notes = stats.notes;
     sleepSessions = [];
 
     stats.sleep.forEach((startTime, endTime) {
@@ -92,20 +96,31 @@ class _StatisticsPageState extends State<StatisticsPage> {
 
       sleepSessions.add(
         SleepInformation(
+          startDate: startTime,
           startTime: _getFormattedTime(startTime),
           endTime: _getFormattedTime(endTime),
-          isFirst: isFirst,
         ),
       );
-
-      isFirst = false;
     });
+
+    sleepSessions.sort((left, right) {
+      return left.startDate.millisecondsSinceEpoch
+          .compareTo(right.startDate.millisecondsSinceEpoch);
+    });
+
+    if (sleepSessions.isNotEmpty) {
+      sleepSessions.first.isFirst = true;
+    }
 
     setState(() {});
   }
 
   int _getDateIndex(DateTime date) {
-    return date.difference(_startDate).inDays + 1;
+    return date.difference(_startDate).inDays;
+  }
+
+  DateTime _getDateTimeAdd(int index) {
+    return DateTime(_startDate.year, _startDate.month, _startDate.day + index);
   }
 
   void _jumpToIndex(int index) {
@@ -122,13 +137,10 @@ class _StatisticsPageState extends State<StatisticsPage> {
   }
 
   _StatisticsPageState() {
-    //Always Starts On A Sunday
-    final registrationDate = currentBby.created;
-    final now = DateTime.now();
-    _startDate = DateTime(registrationDate.year, registrationDate.month,
-        registrationDate.day - registrationDate.weekday % 7);
-    _currentDateIndex = now.difference(_startDate).inDays;
-    _endDateIndex = _currentDateIndex + 7 - now.weekday;
+    _startDate = DateTime(currentBby.created.year, currentBby.created.month,
+        currentBby.created.day - currentBby.created.weekday);
+    _currentDateIndex = _currentDate.difference(_startDate).inDays;
+    _endDateIndex = _currentDateIndex + 6 - _currentDate.weekday + 1;
 
     _pageIndex = _currentDateIndex ~/ 7;
     _selectedIndex = _currentDateIndex;
@@ -142,16 +154,17 @@ class _StatisticsPageState extends State<StatisticsPage> {
   Widget build(BuildContext context) {
     _setSelectedDateTime();
 
-    return Scaffold(
-      body: SingleChildScrollView(
-        child: Container(
-          decoration: const BoxDecoration(
-            image: DecorationImage(
-                colorFilter:
-                    ColorFilter.mode(Color(0x15FFFFFF), BlendMode.dstATop),
-                image: AssetImage('assets/images/undraw_play.png'),
-                fit: BoxFit.cover),
-          ),
+    return Container(
+      decoration: const BoxDecoration(
+        image: DecorationImage(
+            colorFilter: ColorFilter.mode(Color(0x15FFFFFF), BlendMode.dstATop),
+            image: AssetImage('assets/images/undraw_play.png'),
+            fit: BoxFit.cover),
+      ),
+      child: Scaffold(
+        resizeToAvoidBottomInset: false,
+        backgroundColor: Colors.transparent,
+        body: SingleChildScrollView(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Column(
@@ -204,9 +217,11 @@ class _StatisticsPageState extends State<StatisticsPage> {
                           color: Theme.of(context).colorScheme.secondary,
                         ),
                         onPressed: () async {
-                          DateTime targetDate = await _selectDate(context);
-                          int index = _getDateIndex(targetDate);
-                          _animateToIndex(index);
+                          final targetDate = await _selectDate(context);
+                          if (targetDate != null) {
+                            int index = _getDateIndex(targetDate);
+                            _animateToIndex(index);
+                          }
                         },
                       ),
                     ],
@@ -216,7 +231,7 @@ class _StatisticsPageState extends State<StatisticsPage> {
                 SizedBox(
                   height: 130,
                   child: PageView.builder(
-                    itemCount: _endDateIndex ~/ 7,
+                    itemCount: (_endDateIndex ~/ 7),
                     controller: pageController,
                     onPageChanged: (int index) => _pageIndex = index,
                     itemBuilder: (context, index) {
@@ -225,25 +240,19 @@ class _StatisticsPageState extends State<StatisticsPage> {
                         child: Padding(
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                              children: List.generate(7, (int listIndex) {
-                                return DayCircle(
-                                  fraction:
-                                      _getDaySleepMins(index * 7 + listIndex) /
-                                          1020,
-                                  date:
-                                      '${_startDate.add(Duration(days: index * 7 + listIndex)).day}',
-                                  day: days[_startDate
-                                              .add(Duration(
-                                                  days: index * 7 + listIndex))
-                                              .weekday -
-                                          1]
-                                      .substring(0, 1),
-                                  onTap: () {
-                                    _jumpToIndex(index * 7 + listIndex);
-                                  },
-                                );
-                              })),
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            children: List.generate(7, (int listIndex) {
+                              int dayIndex = (index * 7 + listIndex);
+                              DateTime date = _getDateTimeAdd(dayIndex);
+
+                              return DayCircle(
+                                fraction: _getDaySleepMins(date) / 960,
+                                date: '${date.day}',
+                                day: days[date.weekday - 1].substring(0, 1),
+                                onTap: () => _jumpToIndex(dayIndex),
+                              );
+                            }),
+                          ),
                         ),
                       );
                     },
@@ -283,9 +292,7 @@ class _StatisticsPageState extends State<StatisticsPage> {
                         topText: '$_feedingCount',
                         bottomText: 'Feedings',
                       ),
-                      const SizedBox(
-                        height: 32,
-                      ),
+                      const SizedBox(height: 32),
                       IconInformation(
                         iconData: Icons.delete,
                         topText: '$_diaperCount',
@@ -296,17 +303,42 @@ class _StatisticsPageState extends State<StatisticsPage> {
                 ),
                 const DottedDivider(),
                 Padding(
-                  padding: const EdgeInsets.only(top: 16, bottom: 48),
+                  padding: const EdgeInsets.only(top: 16, bottom: 64),
                   child: InkWell(
-                    onTap: () {},
+                    onTap: () async {
+                      final notes = TextEditingController(text: _notes);
+
+                      await showEditDialog(
+                        context: context,
+                        label:
+                            '${_currentDate.month}/${_currentDate.day}/${_currentDate.year}',
+                        field: EditProfileWidgets.editNotes(notes),
+                        updateData: () {
+                          currentBby.updateNotes(_currentDate, notes.text);
+                          setState(() {});
+                        },
+                        formKey: _formKey,
+                      );
+                    },
                     splashColor: Theme.of(context).colorScheme.primary,
                     child: Padding(
                       padding: const EdgeInsets.all(12),
-                      child: Text(
-                        'Add Notes',
-                        style: TextStyle(
-                            color: Theme.of(context).colorScheme.primary),
-                      ),
+                      child: (_notes == '')
+                          ? Text(
+                              'Add Notes',
+                              style: TextStyle(
+                                  color: Theme.of(context).colorScheme.primary),
+                            )
+                          : Text(
+                              _notes,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .subtitle1!
+                                  .copyWith(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .primary),
+                            ),
                     ),
                   ),
                 ),
@@ -322,8 +354,8 @@ class _StatisticsPageState extends State<StatisticsPage> {
     return await showDatePicker(
       context: context,
       initialDate: _currentDate, // Refer step 1
-      firstDate: DateTime(2000),
-      lastDate: DateTime(2025),
+      firstDate: _startDate,
+      lastDate: _getDateTimeAdd(_endDateIndex - 1),
     );
   }
 }
@@ -350,16 +382,16 @@ class MainDayCircle extends StatelessWidget {
           width: 150,
           padding: const EdgeInsets.all(16),
           child: TweenAnimationBuilder<double>(
-            tween: Tween<double>(begin: 0, end: sleepMins / 1020), // 17 hours
+            tween: Tween<double>(begin: 0, end: sleepMins / 960), // 16 hours
             duration: const Duration(milliseconds: 500),
             curve: Curves.decelerate,
             builder: (BuildContext context, double progress, Widget? child) {
               return FractionCircle(
                 backgroundCircleColor: Colors.black12,
-                fraction: progress / 10,
+                fraction: progress.clamp(0, 1),
                 strokeWidth: 13,
                 child: Text(
-                  '${(progress * 10).round()}%',
+                  '${(progress * 100).round().clamp(0, 100)}%',
                   style: TextStyle(
                       fontSize: 40,
                       fontWeight: FontWeight.w900,
@@ -402,16 +434,18 @@ class MainDayCircle extends StatelessWidget {
 }
 
 class SleepInformation extends StatelessWidget {
-  const SleepInformation({
+  final DateTime startDate;
+  final String startTime;
+  final String endTime;
+  bool isFirst;
+
+  SleepInformation({
     Key? key,
+    required this.startDate,
     required this.startTime,
     required this.endTime,
     this.isFirst = false,
   }) : super(key: key);
-
-  final String startTime;
-  final String endTime;
-  final bool isFirst;
 
   @override
   Widget build(BuildContext context) {
@@ -431,12 +465,8 @@ class SleepInformation extends StatelessWidget {
                   ],
                 ),
               )
-            : const SizedBox(
-                width: 45,
-              ),
-        const SizedBox(
-          width: 8,
-        ),
+            : const SizedBox(width: 45),
+        const SizedBox(width: 8),
         RichText(
           text: TextSpan(
             children: [
@@ -478,9 +508,7 @@ class SleepInformation extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(
-          width: 12,
-        ),
+        const SizedBox(width: 12),
         (isFirst)
             ? RichText(
                 text: TextSpan(
@@ -495,12 +523,8 @@ class SleepInformation extends StatelessWidget {
                   ],
                 ),
               )
-            : const SizedBox(
-                width: 45,
-              ),
-        const SizedBox(
-          width: 8,
-        ),
+            : const SizedBox(width: 45),
+        const SizedBox(width: 8),
       ],
     );
   }

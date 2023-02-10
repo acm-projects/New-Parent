@@ -18,9 +18,9 @@ class _SignInFormState extends State<SignInForm> {
   final _formKey = GlobalKey<FormState>();
 
   // Field values
-  String name = '';
-  String email = '';
-  String password = '';
+  final name = TextEditingController();
+  final email = TextEditingController();
+  final password = TextEditingController();
   String error = '';
 
   @override
@@ -30,6 +30,7 @@ class _SignInFormState extends State<SignInForm> {
       child: Column(
         children: [
           ..._buildErrorField(),
+          ..._buildNameField(),
           _buildEmailAddressField(),
           const SizedBox(height: 20.0),
           _buildPasswordField(),
@@ -77,8 +78,32 @@ class _SignInFormState extends State<SignInForm> {
     ];
   }
 
+  List<Widget> _buildNameField() {
+    return (widget.register)
+        ? [
+            TextFormField(
+              controller: name,
+              keyboardType: TextInputType.name,
+              decoration: InputDecoration(
+                fillColor: Theme.of(context).scaffoldBackgroundColor,
+                filled: true,
+                labelText: 'Full Name',
+                border: const OutlineInputBorder(
+                    borderRadius: BorderRadius.all(Radius.circular(100))),
+                prefixIcon: const Icon(Icons.person),
+              ),
+              validator: (value) {
+                return (value == null || value.isEmpty) ? '' : null;
+              },
+            ),
+            const SizedBox(height: 20.0),
+          ]
+        : [];
+  }
+
   Widget _buildEmailAddressField() {
     return TextFormField(
+      controller: email,
       keyboardType: TextInputType.emailAddress,
       decoration: InputDecoration(
         fillColor: Theme.of(context).scaffoldBackgroundColor,
@@ -91,12 +116,12 @@ class _SignInFormState extends State<SignInForm> {
       validator: (value) {
         return (value == null || value.isEmpty) ? '' : null;
       },
-      onChanged: (value) => setState(() => email = value),
     );
   }
 
   Widget _buildPasswordField() {
     return TextFormField(
+      controller: password,
       keyboardType: TextInputType.visiblePassword,
       obscureText: true,
       decoration: InputDecoration(
@@ -110,7 +135,6 @@ class _SignInFormState extends State<SignInForm> {
       validator: (value) {
         return (value == null || value.length < 6) ? '' : null;
       },
-      onChanged: (value) => setState(() => password = value),
     );
   }
 
@@ -124,9 +148,11 @@ class _SignInFormState extends State<SignInForm> {
           final provider = Provider.of<AuthService>(context, listen: false);
 
           if (widget.register) {
-            provider.registerWithEmailAndPassword(email, password);
+            provider.registerWithEmailAndPassword(
+                name.text, email.text, password.text,
+                setError: _setError);
           } else {
-            provider.signInWithEmailAndPassword(email, password,
+            provider.signInWithEmailAndPassword(email.text, password.text,
                 setError: _setError);
           }
         }
@@ -136,48 +162,46 @@ class _SignInFormState extends State<SignInForm> {
   }
 
   Widget _buildGoogleSignInButton() {
-    if (widget.register) {
-      return const SizedBox(height: 125.0);
-    } else {
-      return Column(
-        children: [
-          const SizedBox(height: 25.0),
-          Row(children: [
-            Expanded(child: Divider(color: Colors.black.withOpacity(0.5))),
-            Text('   or   ',
-                style: TextStyle(color: Colors.black.withOpacity(0.5))),
-            Expanded(child: Divider(color: Colors.black.withOpacity(0.5))),
-          ]),
-          const SizedBox(height: 25.0),
-          RoundButton(
-            onPressed: () {
-              final provider = Provider.of<AuthService>(context, listen: false);
-              provider.signInWithGoogle();
-            },
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                FaIcon(
-                  FontAwesomeIcons.google,
-                  color: Theme.of(context).colorScheme.primary,
+    return (widget.register)
+        ? const SizedBox(height: 125.0)
+        : Column(
+            children: [
+              const SizedBox(height: 25.0),
+              Row(children: [
+                Expanded(child: Divider(color: Colors.black.withOpacity(0.5))),
+                Text('   or   ',
+                    style: TextStyle(color: Colors.black.withOpacity(0.5))),
+                Expanded(child: Divider(color: Colors.black.withOpacity(0.5))),
+              ]),
+              const SizedBox(height: 25.0),
+              RoundButton(
+                onPressed: () {
+                  final provider =
+                      Provider.of<AuthService>(context, listen: false);
+                  provider.signInWithGoogle();
+                },
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    FaIcon(
+                      FontAwesomeIcons.google,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                    const SizedBox(
+                      width: 8,
+                    ),
+                    Text(
+                      'Login with Google',
+                      style: Theme.of(context).textTheme.headline2!.copyWith(
+                          color: Theme.of(context).colorScheme.onSecondary),
+                    ),
+                  ],
                 ),
-                const SizedBox(
-                  width: 8,
-                ),
-                Text(
-                  'Login with Google',
-                  style: Theme.of(context).textTheme.headline2!.copyWith(
-                      color: Theme.of(context).colorScheme.onSecondary),
-                ),
-              ],
-            ),
-          )
-        ],
-      );
-    }
+              )
+            ],
+          );
   }
 
-  void _setError(String? errorMessage) {
-    setState(() => error = errorMessage ?? '');
-  }
+  void _setError(String? errorMessage) =>
+      setState(() => error = errorMessage ?? '');
 }

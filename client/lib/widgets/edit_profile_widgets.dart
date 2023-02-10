@@ -39,7 +39,7 @@ class EditProfileWidgets {
       context: context,
       initialDate: initialDate, // Refer step 1
       firstDate: DateTime(2000),
-      lastDate: DateTime(2025),
+      lastDate: DateTime.now(),
     );
 
     if (selectedDate != null &&
@@ -206,71 +206,69 @@ class EditProfileWidgets {
       List<int> allergySeverities, List<int> remove, Function setState) {
     var items = ['Mild', 'Moderate', 'Severe'];
 
-    return Padding(
-      padding: const EdgeInsets.only(right: 48),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          IconButton(
-            iconSize: 16,
-            icon: const Icon(Icons.close),
-            onPressed: () {
-              setState(() {
-                allergyNames.removeAt(index);
-                allergySeverities.removeAt(index);
-              });
-            },
-          ),
-          Expanded(
-            child: TextFormField(
-                initialValue: allergyNames[index],
-                decoration: InputDecoration(
-                    labelText: 'Allergy ${index + 1}',
-                    isDense: true,
-                    contentPadding: const EdgeInsets.only(bottom: 6)),
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Expanded(
+          child: TextFormField(
+              initialValue: allergyNames[index],
+              decoration: InputDecoration(
+                  icon: const Icon(Icons.warning_amber_outlined),
+                  labelText: 'Allergy ${index + 1}',
+                  isDense: true,
+                  contentPadding: const EdgeInsets.only(bottom: 6)),
+              onChanged: (newValue) {
+                allergyNames[index] = newValue.toString();
+              },
+              validator: (value) {
+                if ((value == null || value.isEmpty) &&
+                    allergySeverities[index] == -1) {
+                  remove.add(index);
+                  return null;
+                }
+                return (value == null || value.isEmpty)
+                    ? 'Enter Allergy or Delete'
+                    : null;
+              }),
+        ),
+        const SizedBox(width: 16),
+        Padding(
+          padding: const EdgeInsets.only(top: 13),
+          child: SizedBox(
+            width: 88,
+            child: DropdownButtonFormField(
+                hint: const Text('Severity'),
+                decoration: const InputDecoration(
+                    contentPadding: EdgeInsets.only(bottom: 2)),
+                value: (allergySeverities[index] != -1)
+                    ? items[allergySeverities[index]]
+                    : null,
+                icon: const Icon(Icons.keyboard_arrow_down),
+                items: items.map((String items) {
+                  return DropdownMenuItem(value: items, child: Text(items));
+                }).toList(),
                 onChanged: (newValue) {
-                  allergyNames[index] = newValue.toString();
+                  allergySeverities[index] = items.indexOf(newValue.toString());
                 },
                 validator: (value) {
-                  if ((value == null || value.isEmpty) &&
-                      allergySeverities[index] == -1) {
-                    remove.add(index);
-                    return null;
-                  }
-                  return (value == null || value.isEmpty)
-                      ? 'Enter Allergy or Delete'
-                      : null;
+                  return (value != null || remove.contains(index))
+                      ? null
+                      : 'Select Severity';
                 }),
           ),
-          const SizedBox(width: 16),
-          Padding(
-            padding: const EdgeInsets.only(top: 13),
-            child: SizedBox(
-              width: 88,
-              child: DropdownButtonFormField(
-                  hint: const Text('Severity'),
-                  decoration: const InputDecoration(
-                      contentPadding: EdgeInsets.only(bottom: 2)),
-                  value: (allergySeverities[index] != -1)
-                      ? items[allergySeverities[index]]
-                      : null,
-                  icon: const Icon(Icons.keyboard_arrow_down),
-                  items: items.map((String items) {
-                    return DropdownMenuItem(value: items, child: Text(items));
-                  }).toList(),
-                  onChanged: (newValue) {
-                    allergySeverities[index] =
-                        items.indexOf(newValue.toString());
-                  },
-                  validator: (value) {
-                    return (value != null || remove.contains(index))
-                        ? null
-                        : 'Select Severity';
-                  }),
-            ),
-          ),
-        ],
-      ),
+        ),
+        IconButton(
+          iconSize: 16,
+          padding: const EdgeInsets.only(top: 12),
+          icon: const Icon(Icons.close),
+          onPressed: () {
+            setState(() {
+              allergyNames.removeAt(index);
+              allergySeverities.removeAt(index);
+            });
+          },
+        ),
+      ],
     );
   }
 
@@ -286,7 +284,7 @@ class EditProfileWidgets {
 
         allergyFields.add(
           Align(
-            alignment: Alignment.centerRight,
+            alignment: Alignment.centerLeft,
             child: InkWell(
               onTap: () {
                 setState(() {
@@ -296,7 +294,7 @@ class EditProfileWidgets {
               },
               splashColor: Theme.of(context).colorScheme.secondary,
               child: Padding(
-                padding: const EdgeInsets.only(right: 48, top: 16),
+                padding: const EdgeInsets.only(left: 32, top: 16),
                 child: Text(
                   'Add Allergy',
                   style:
@@ -411,6 +409,17 @@ class EditProfileWidgets {
       Function setState) {
     return Row(
       children: [
+        Expanded(
+          child: TextFormField(
+            initialValue: email,
+            decoration: const InputDecoration(
+              border: InputBorder.none,
+              icon: Icon(Icons.person),
+              enabled: false,
+              isDense: false,
+            ),
+          ),
+        ),
         IconButton(
           icon: const Icon(Icons.close),
           onPressed: () {
@@ -421,7 +430,6 @@ class EditProfileWidgets {
             }
           },
         ),
-        Text(email),
       ],
     );
   }
@@ -448,8 +456,8 @@ class EditProfileWidgets {
     return sharedUserWidgets;
   }
 
-  static Future shareProfile(String profileId, String currentUserEmail, Map<String, String> newUsers,
-      List<String> removedUsers) async {
+  static Future shareProfile(String profileId, String currentUserEmail,
+      Map<String, String> newUsers, List<String> removedUsers) async {
     Map<String, String> currentUsers =
         await DataService.getProfileSharedUsers(profileId);
 
@@ -461,14 +469,26 @@ class EditProfileWidgets {
         children: [
           Row(
             children: [
-              SizedBox(
-                width: 150,
+              Expanded(
                 child: TextField(
                   controller: newUserEmail,
+                  decoration: const InputDecoration(
+                    icon: Icon(Icons.person_add),
+                    labelText: 'User Email',
+                  ),
                 ),
               ),
+              const SizedBox(
+                width: 16,
+              ),
               TextButton(
-                child: const Text('Add User'),
+                child: Text(
+                  'Add User',
+                  style: Theme.of(context)
+                      .textTheme
+                      .subtitle1!
+                      .copyWith(color: Theme.of(context).colorScheme.primary),
+                ),
                 onPressed: () async {
                   if (currentUsers.containsValue(newUserEmail.text)) {
                     debugPrint('Specified user is already added');
@@ -497,5 +517,18 @@ class EditProfileWidgets {
         ],
       );
     });
+  }
+
+  static Widget editNotes(TextEditingController notes) {
+    return TextFormField(
+      autofocus: true,
+      maxLines: 3,
+      controller: notes,
+      decoration: const InputDecoration(
+        labelText: 'Notes',
+        icon: Icon(Icons.sticky_note_2),
+        errorStyle: TextStyle(height: 0),
+      ),
+    );
   }
 }

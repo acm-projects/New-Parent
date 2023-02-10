@@ -22,6 +22,7 @@ class DataService {
     'profiles': [],
     'shared_profiles': [],
     'to_do_list': {},
+    'notes': {},
   };
 
   static getProfileSharedUsers(String profileId) async {
@@ -81,13 +82,15 @@ class DataService {
   }
 
   // sets data sync for user data with database
-  static setUserDataSync(String uid, String email, Function update) async {
+  static setUserDataSync(
+      String uid, String name, String email, Function update) async {
     DocumentReference userDocument = _userCollection.doc(uid);
 
     // If user data doesn't exist yet, create it
     await userDocument.get().then((document) {
       if (!document.exists) {
         Map<String, dynamic> userData = Map.of(_defaultUserData);
+        userData['name'] = name;
         userData['email'] = email;
         userDocument.set(userData);
       }
@@ -122,7 +125,8 @@ class DataService {
       }
     }
 
-    Reference imageRef = _profilePics.child(uid + '.' + imageFile.path.split('.').last);
+    Reference imageRef =
+        _profilePics.child(uid + '.' + imageFile.path.split('.').last);
     UploadTask uploadTask = imageRef.putFile(imageFile);
     await uploadTask.whenComplete(() async {
       imageUrl = await uploadTask.snapshot.ref.getDownloadURL();
@@ -132,6 +136,7 @@ class DataService {
   }
 
   static createProfile({
+    required String owner,
     required String name,
     required DateTime birthDate,
     required int gender,
@@ -144,9 +149,11 @@ class DataService {
     required String imagePath,
   }) async {
     String documentId = '';
+    DateTime now = DateTime.now();
 
     await _profileCollection.add({
-      'created': DateTime.now().toString(),
+      'owner': owner,
+      'created': DateTime(now.year, now.month, now.day).toString(),
       'name': name,
       'birth_date': birthDate.toString().split(' ').first,
       'gender': gender,
@@ -177,15 +184,21 @@ class DataService {
     await profileDocument.update(fields);
   }
 
-  static Future getProfileNames(
-      List<String> owned, List<String> shared) async {
-    Map<String, String> profileNames = {};
-    
-    await _profileCollection.where('uid', whereIn: [...owned, ...shared, '']).get().then((query) {
-      for (var document in query.docs) {
-        profileNames[document.id] = document.data()['name'] as String;
-      }
-    });
+  static Future getProfileNames(List<String> owned, List<String> shared) async {
+    Map<String, List<String?>> profileNames = {};
+
+    await _profileCollection
+        .where('uid', whereIn: [...owned, ...shared, ''])
+        .get()
+        .then((query) {
+          for (var document in query.docs) {
+            final data = document.data();
+            profileNames[document.id] = [
+              data['name'] as String,
+              data['owner'] as String?,
+            ];
+          }
+        });
 
     return profileNames;
   }
@@ -237,19 +250,24 @@ class DataService {
 
     if (qod.isEmpty || qod[0] != today) {
       // fetch qod from api
-      var response = await http
-          .get(Uri.parse('http://quotes.rest/qod.json?category=inspire'));
+      try {
+        var response = await http
+            .get(Uri.parse('http://quotes.rest/qod.json?category=inspire'));
 
-      if (response.statusCode == 200) {
-        Map<String, dynamic> qodData = jsonDecode(response.body)['contents']['quotes'][0];
-        qod = [
-          today,
-          qodData['quote'],
-          qodData['author'],
-        ];
+        if (response.statusCode == 200) {
+          Map<String, dynamic> qodData =
+              jsonDecode(response.body)['contents']['quotes'][0];
+          qod = [
+            today,
+            qodData['quote'],
+            qodData['author'],
+          ];
+
+          preferences.setStringList('qod', qod);
+        }
+      } catch (error) {
+        debugPrint(error.toString());
       }
-
-      preferences.setStringList('qod', qod);
     }
 
     return qod;

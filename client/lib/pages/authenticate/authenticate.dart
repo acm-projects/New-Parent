@@ -14,27 +14,36 @@ class _AuthenticateState extends State<Authenticate> {
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.all(30),
-        child: Center(
-          child: Column(
-            children: [
-              const SizedBox(height: 25.0),
-              _buildTitle(),
-              const SizedBox(height: 30.0),
-              SignInForm(register),
-              const SizedBox(height: 80.0),
-              _buildToggle()
-            ],
+    return LayoutBuilder(
+      builder: (context, constraint) {
+        return SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(30),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                minHeight: constraint.maxHeight - 30,
+              ),
+              child: IntrinsicHeight(
+                child: Column(
+                  mainAxisSize: MainAxisSize.max,
+                  children: [
+                    const SizedBox(height: 25.0),
+                    _buildTitle(),
+                    const SizedBox(height: 30.0),
+                    SignInForm(register),
+                    _buildToggle()
+                  ],
+                ),
+              ),
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
   Widget _buildTitle() {
-    String title = register ? 'Create a new account' : 'Welcome to New Parent';
+    String title = register ? 'Create a new account' : 'Welcome to BabyQuest';
     String subtitle =
         register ? 'Sign up to get started:' : 'Sign in to continue:';
 
@@ -57,25 +66,34 @@ class _AuthenticateState extends State<Authenticate> {
         register ? 'Already have an account? ' : 'Don\'t have an account? ';
     String buttonLabel = register ? 'Sign In' : 'Register Now';
 
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            color: Theme.of(context).colorScheme.onBackground,
-            fontSize: 16.0,
-          ),
+    return Expanded(
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 16),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(bottom: 14),
+              child: Text(
+                label,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onBackground,
+                  fontSize: 16.0,
+                ),
+              ),
+            ),
+            TextButton(
+              style: TextButton.styleFrom(
+                primary: Theme.of(context).colorScheme.primary,
+              ),
+              onPressed: () => setState(() => register = !register),
+              child: Text(buttonLabel,
+                  style: const TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ],
         ),
-        TextButton(
-          style: TextButton.styleFrom(
-            primary: Theme.of(context).colorScheme.primary,
-          ),
-          onPressed: () => setState(() => register = !register),
-          child: Text(buttonLabel,
-              style: const TextStyle(fontWeight: FontWeight.bold)),
-        ),
-      ],
+      ),
     );
   }
 }

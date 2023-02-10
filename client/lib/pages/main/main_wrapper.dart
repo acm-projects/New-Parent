@@ -30,11 +30,9 @@ class _MainWrapperState extends State<MainWrapper> {
 
   @override
   Widget build(BuildContext context) {
-    if (creatingProfile) {
-      return CreateProfilePage(_creatingNewProfile);
-    } else {
-      return _mainPage();
-    }
+    return creatingProfile
+        ? CreateProfilePage(_creatingNewProfile)
+        : _mainPage();
   }
 
   Widget _mainPage() {

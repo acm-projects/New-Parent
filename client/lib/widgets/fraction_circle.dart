@@ -65,7 +65,7 @@ class ArcPainter extends CustomPainter {
     final Color backgroundArcColor = this.backgroundArcColor;
 
     final rect = Rect.fromLTRB(0, 0, size.width, size.height);
-    final startAngle = -math.pi / 2;
+    const startAngle = -math.pi / 2;
     final sweepAngle = (2 * math.pi) * fraction;
     const useCenter = false;
 

@@ -1,3 +1,5 @@
+import 'package:auto_size_text/auto_size_text.dart';
+import 'package:client/models/app_user.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -19,6 +21,7 @@ class _HomePageState extends State<HomePage> {
 
   String _qodMessage = '';
   String _qodAuthor = '';
+  bool _demoQOD = false;
 
   bool _isSleeping = false;
   int _feedingCount = 0;
@@ -111,6 +114,8 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
+    var quoteGroup = AutoSizeGroup();
+
     return Scaffold(
       resizeToAvoidBottomInset: false,
       body: StreamBuilder(
@@ -135,73 +140,96 @@ class _HomePageState extends State<HomePage> {
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Column(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Padding(
-                    padding: const EdgeInsets.only(top: 48, bottom: 16),
-                    child: Text(
-                      'Welcome Back Parent!',
-                      style: Theme.of(context).textTheme.headline1!.copyWith(
-                          color: Theme.of(context).colorScheme.primary),
-                    ),
-                  ),
-                  const DottedDivider(),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                        vertical: 16, horizontal: 16),
-                    child: InkWell(
-                      splashColor: Theme.of(context).colorScheme.primary,
-                      onTap: () {},
-                      onLongPress: () {
-                        Clipboard.setData(
-                          ClipboardData(text: '$_qodMessage - $_qodAuthor'),
-                        );
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          _getSnackBar(
-                            text: 'Quote Copied To Clipboard',
+                  Expanded(
+                    child: Column(
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.only(top: 48, bottom: 16),
+                          child: Text(
+                            'Welcome Back ${AppUser.currentUser?.name ?? 'Parent'}!',
+                            style: Theme.of(context)
+                                .textTheme
+                                .headline1!
+                                .copyWith(
+                                    color:
+                                        Theme.of(context).colorScheme.primary),
                           ),
-                        );
-                      },
-                      child: FutureBuilder(
-                        future: _setup(),
-                        builder: (context, snapshot) {
-                          if (snapshot.hasData) {
-                            return Column(
-                              children: [
-                                Text(
-                                  _qodMessage,
-                                  style: Theme.of(context).textTheme.headline2,
-                                ),
-                                const SizedBox(
-                                  height: 16,
-                                ),
-                                Align(
-                                  alignment: Alignment.centerRight,
-                                  child: Text(
-                                    '- ' + _qodAuthor,
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .headline2!
-                                        .copyWith(
-                                            color: Theme.of(context)
-                                                .colorScheme
-                                                .primary),
+                        ),
+                        const DottedDivider(),
+                        Flexible(
+                          fit: FlexFit.loose,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                                vertical: 16, horizontal: 16),
+                            child: InkWell(
+                              splashColor:
+                                  Theme.of(context).colorScheme.primary,
+                              onTap: () {},
+                              onLongPress: () {
+                                Clipboard.setData(
+                                  ClipboardData(
+                                      text: '$_qodMessage - $_qodAuthor'),
+                                );
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  _getSnackBar(
+                                    text: 'Quote Copied To Clipboard',
                                   ),
-                                ),
-                              ],
-                            );
-                          } else {
-                            return const CircularProgressIndicator();
-                          }
-                        },
-                      ),
+                                );
+                              },
+                              child: FutureBuilder(
+                                future: _setup(),
+                                builder: (context, snapshot) {
+                                  if (snapshot.hasData) {
+                                    return Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Flexible(
+                                          child: AutoSizeText(
+                                            _qodMessage,
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .headline2,
+                                            group: quoteGroup,
+                                          ),
+                                        ),
+                                        const SizedBox(
+                                          height: 8,
+                                        ),
+                                        Align(
+                                          alignment: Alignment.centerRight,
+                                          child: AutoSizeText(
+                                            '- ' + _qodAuthor,
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .headline2!
+                                                .copyWith(
+                                                    color: Theme.of(context)
+                                                        .colorScheme
+                                                        .primary),
+                                            group: quoteGroup,
+                                          ),
+                                        ),
+                                      ],
+                                    );
+                                  } else {
+                                    return const CircularProgressIndicator();
+                                  }
+                                },
+                              ),
+                            ),
+                          ),
+                        ),
+                        const DottedDivider(),
+                      ],
                     ),
                   ),
-                  const DottedDivider(),
-                  const Spacer(),
                   Padding(
                     padding: const EdgeInsets.only(
                         left: 32, right: 32, bottom: 48, top: 16),
                     child: Column(
+                      mainAxisAlignment: MainAxisAlignment.end,
                       children: [
                         RoundButton(
                           backgroundColor: _isSleeping
@@ -257,10 +285,16 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future _setup() async {
+    if (_demoQOD) {
+      _qodMessage = 'Behind every young child who believes in himself is a parent who believed first.';
+      _qodAuthor = 'Matthew Jacobsen';
+
+      return true;
+    }
     List<String> qodData = await DataService.getQOD();
     _qodMessage = qodData[1];
     _qodAuthor = qodData[2];
 
-    return Future.value(qodData);
+    return true;
   }
 }
